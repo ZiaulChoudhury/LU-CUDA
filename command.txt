@@ -1,0 +1,1 @@
+nvcc -arch=sm_60 LU2.cu -rdc=true --std=c++11 -o test
