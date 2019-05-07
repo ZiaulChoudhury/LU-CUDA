@@ -3,19 +3,23 @@
 #include <math.h>
 #include<sys/time.h>
 #include <cooperative_groups.h>
-#define N 512
-
-namespace cg = cooperative_groups;
+#define N 128
+#define ITER 2
 
 __global__ void decompose(float *A, float *pivots, int iteration)
 {
 	int blockID = blockIdx.x;
 	int threadId = threadIdx.x;
+	int bid;
 	float p = 0;
-	if(blockID >= iteration){
-		p = A[blockIdx.x * N + iteration - 1]/A[(iteration - 1)*N + iteration - 1];
-		A[blockID*N + threadId] -= p * A[(iteration-1)*N + threadId];
-		A[blockID*N + iteration-1] = p;
+	int i;
+	for(i=0;i<ITER;i++){
+		bid = i*(N/ITER) + blockID;
+		if(bid >= iteration){
+			p = A[bid * N + iteration - 1]/A[(iteration - 1)*N + iteration - 1];
+			A[bid*N + threadId] -= p * A[(iteration-1)*N + threadId];
+			A[bid*N + iteration-1] = p;
+		}
 	}
 }
 
@@ -51,9 +55,9 @@ int main(int argc, char *argv[]){
 		for(int j=0;j<N;j++)
 		printf(" %6.2f ", A[i*N + j]);
 	printf("\n");
-	}
+	}*/
 
-	printf("\n\n");*/
+	//printf("\n\n");
 
 	for(int i=1;i<N;i++)
 		pivots[i] = A[(i)*N]/A[0];
@@ -64,14 +68,15 @@ int main(int argc, char *argv[]){
         cudaEventCreate(&stop);
 	for(int i=1;i<N;i++) {
 	cudaEventRecord(start, 0);
-	decompose<<<N,N>>>(dev_a,dev_pivots,i);	
+	decompose<<<N/ITER,N>>>(dev_a,dev_pivots,i);	
 	cudaEventRecord(stop, 0);
 	cudaThreadSynchronize();	
 	//printf("\n");
 	cudaMemcpy(A, dev_a, N*N*sizeof(float), cudaMemcpyDeviceToHost);
         cudaEventElapsedTime(&time, start, stop);
         totalTime += time;
-	}	
+	}
+	//printA(A);	
         printf("\n \n GPU kernel execution time = %f ms\n",totalTime);
 	
 }
